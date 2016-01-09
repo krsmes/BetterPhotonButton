@@ -1,8 +1,9 @@
+#pragma SPARK_NO_PREPROCESSOR
 #include "application.h"
+#include "BetterPhotonButton.h"
 
 SYSTEM_THREAD(ENABLED);
 
-#include "BetterPhotonButton.h"
 
 BetterPhotonButton bb = BetterPhotonButton();
 
