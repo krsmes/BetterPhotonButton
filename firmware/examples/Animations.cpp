@@ -40,8 +40,8 @@ PixelColor colorsParty[] = {
         0x5500AB, 0x84007C, 0xB5004B, 0xE5001B, 0xE81700, 0xB84700, 0xAB7700, 0xABAB00,
         0xAB5500, 0xDD2200, 0xF2000E, 0xC2003E, 0x8F0071, 0x5F00A1, 0x2F00D0, 0x0007F9
 };
-PixelColor colorsHeat[] = {
-        0x000000, 0xFF0000, 0xFFFF00, 0xFFFFCC
+PixelColor colorsWRY[] = {
+        0x000000, 0xFF0000, 0xFFFF00
 };
 
 // all the palettes (predefined and custom)
@@ -51,9 +51,9 @@ PixelPalette palettes[] = {
         paletteRYGB,
         paletteRYGBStripe,
         paletteRainbow,
-        { colorsRainbowStripe, 16 },
-        { colorsParty, 16 },
-        { colorsHeat, 4 },
+        { 16, colorsRainbowStripe },
+        { 16, colorsParty },
+        { 3, colorsWRY },
 };
 
 int currentPalette = 0;
@@ -68,7 +68,7 @@ void setup() {
     bb.setPressedHandler(&buttonHandler);
     bb.setReleasedHandler(&buttonHandler);
     bb.setReleasedHandler(0, &startAnimation); // start animations when top button released
-    bb.rainbow(500, 2000);  // show a fast rainbow at startup for 2 seconds
+    bb.rainbow(500, 1000);  // loop rainbow twice in one second at startup
 }
 
 void loop() {

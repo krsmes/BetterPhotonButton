@@ -50,6 +50,5 @@ void loop() {
             int top = (az - 6)/ 30;
             bb.setPixel(top, 0xFF00FF);
         }
-//        Serial.printlnf("temperatureRaw=%d", bb.getTemperatureRaw());
     }
 }

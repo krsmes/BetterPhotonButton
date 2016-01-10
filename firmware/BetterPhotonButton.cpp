@@ -40,7 +40,7 @@ PhotonADXL362Accel accelerometer = PhotonADXL362Accel(ADXL_PHOTON_PIN);
 
 BetterPhotonButton::BetterPhotonButton() {
     animationData.pixels = pixels;
-    animationData.count = PIXEL_COUNT;
+    animationData.pixelCount = PIXEL_COUNT;
 }
 
 
@@ -95,36 +95,43 @@ void BetterPhotonButton::setReleasedHandler(byte button, ButtonHandler *handler)
 }
 
 void BetterPhotonButton::setPixel(int pixel, byte r, byte g, byte b) {
-    animationFunction = NULL;
-    pixelRing.setPixelColor(pixel, PixelColor(r, g, b));
+    setPixel(pixel, PixelColor(r, g, b));
 }
 
-void BetterPhotonButton::setPixel(int pixel, unsigned int rgb) {
+void BetterPhotonButton::setPixel(int pixel, PixelColor color) {
     animationFunction = NULL;
-    pixelRing.setPixelColor(pixel, PixelColor(rgb));
-}
+    pixelRing.setPixelColor(pixel, color);
+};
 
 void BetterPhotonButton::setPixels(byte r, byte g, byte b) {
-    animationFunction = NULL;
-    for (int idx = 0; idx < PIXEL_COUNT; idx++) { pixelRing.setPixelColor(idx, PixelColor(r, g, b)); }
+    setPixels(PixelColor(r, g, b));
 }
 
-void BetterPhotonButton::setPixels(unsigned int rgb) {
+void BetterPhotonButton::setPixels(PixelColor color) {
     animationFunction = NULL;
-    for (int idx = 0; idx < PIXEL_COUNT; idx++) { pixelRing.setPixelColor(idx, PixelColor(rgb)); }
+    for (int idx = 0; idx < PIXEL_COUNT; idx++) { pixelRing.setPixelColor(idx, color); }
+};
+
+void BetterPhotonButton::setPixels(PixelColor* colors, int count) {
+    animationFunction = NULL;
+    for (int idx = 0; idx < PIXEL_COUNT; idx++) {
+        pixelRing.setPixelColor(idx, idx < count ? colors[idx] : 0);
+    }
 }
 
 PixelColor BetterPhotonButton::getPixel(int pixel) {
     return pixels[pixel];
 }
 
-PixelAnimationData* BetterPhotonButton::startPixelAnimation(PixelAnimation *animation, PixelPalette *palette, long cycle, long duration) {
+PixelAnimationData* BetterPhotonButton::startPixelAnimation(PixelAnimation *animation, PixelPalette *palette,
+                                                            long cycle, long duration, int refresh) {
     animationFunction = animation;
     animationData.palette = palette;
     animationData.cycleMillis = cycle;
     animationData.start = millis();
     animationData.stop = animationData.start + duration;
-    animationData.temp = &animationTemp;
+    animationData.temp = 0;
+    animationRefresh = refresh;
     return &animationData;
 }
 
@@ -178,7 +185,7 @@ void BetterPhotonButton::updateAnimation(system_tick_t millis) {
         }
         else {
             animationData.updated = millis;
-            animationFunction(animationData);
+            animationFunction(&animationData);
             pixelRing.triggerRefresh();
         }
     }
@@ -501,129 +508,129 @@ void PhotonADXL362Accel::spiReadXYZT() {
  */
 
 
-PixelColor colorsBW[] = { 0x999999, 0 };  // white is first so that blink/fade animations work
-PixelColor colorsRGB[] = { 0xFF0000, 0x00FF00, 0x0000FF };
-PixelColor colorsRYGB[] = { 0xFF0000, 0xFFFF00, 0x00FF00, 0x0000FF };
-PixelColor colorsRYGBStripe[] = { 0xFF0000, 0, 0xFFFF00, 0, 0x00FF00, 0,  0x0000FF, 0 };
+PixelColor colorsBW[] = { PixelColor::WHITE, PixelColor::BLACK };  // white is first so that blink/fade animations work
+PixelColor colorsRGB[] = { PixelColor::RED, PixelColor::GREEN, PixelColor::BLUE };
+PixelColor colorsRYGB[] = { PixelColor::RED, PixelColor::YELLOW, PixelColor::GREEN, PixelColor::BLUE };
+PixelColor colorsRYGBStripe[] = { PixelColor::RED, 0, PixelColor::YELLOW, 0, PixelColor::GREEN, 0,  PixelColor::BLUE, 0 };
 PixelColor colorsRainbow[] = { 0xFF0000, 0xAB5500, 0xABAB00, 0x00FF00, 0x00AB55, 0x0000FF, 0x5500AB, 0xAB0055 };
 
-PixelPalette paletteBW = { colorsBW, 2 };
-PixelPalette paletteRGB = { colorsRGB, 3 };
-PixelPalette paletteRYGB = { colorsRYGB, 4 };
-PixelPalette paletteRYGBStripe = { colorsRYGBStripe, 8 };
-PixelPalette paletteRainbow = { colorsRainbow, 8 };
+PixelPalette paletteBW = { 2, colorsBW };
+PixelPalette paletteRGB = { 3, colorsRGB };
+PixelPalette paletteRYGB = { 4, colorsRYGB };
+PixelPalette paletteRYGBStripe = { 8, colorsRYGBStripe };
+PixelPalette paletteRainbow = { 8, colorsRainbow };
 
-void animation_blink(PixelAnimationData data) {
-    data.setPixels(data.color(0).scale((data.step(2) + 1) % 2));
+void animation_blink(PixelAnimationData* data) {
+    data->setPixels(data->paletteColor(0).scale((data->step(2) + 1) % 2));
 }
 
-void animation_alternating(PixelAnimationData data) {
-    int step = data.step(2);
-    for (int idx = 0; idx < data.count; idx++) {
-        data.pixels[idx] = data.color(0).scale((step + idx) % 2);
+void animation_alternating(PixelAnimationData* data) {
+    int step = data->step(2);
+    for (int idx = 0; idx < data->pixelCount; idx++) {
+        data->pixels[idx] = data->paletteColor(0).scale((step + idx) % 2);
     }
 }
 
-void animation_fadeIn(PixelAnimationData data) {
-    data.setPixels(data.color(0).scale(data.step(1.0f)));
+void animation_fadeIn(PixelAnimationData* data) {
+    data->setPixels(data->paletteColor(0).scale(data->step(1.0f)));
 }
 
-void animation_fadeOut(PixelAnimationData data) {
-    data.setPixels(data.color(0).scale(1.0f - data.step(1.0f)));
+void animation_fadeOut(PixelAnimationData* data) {
+    data->setPixels(data->paletteColor(0).scale(1.0f - data->step(1.0f)));
 }
 
-void animation_glow(PixelAnimationData data) {
-    float scale = (-cosf(data.step((float)M_PI*2)) + 1.0f) / 2.0f;
-    data.setPixels(data.color(0).scale(scale));
+void animation_glow(PixelAnimationData* data) {
+    float scale = (-cosf(data->step((float)M_PI*2)) + 1.0f) / 2.0f;
+    data->setPixels(data->paletteColor(0).scale(scale));
 }
 
-void animation_strobe(PixelAnimationData data) {
-    int step = data.step(10);  // 1/10th of the cycle
-    if (step != *data.temp) {
-        *data.temp = step;
-        data.setPixels(data.randomColor().scale(step==0));
+void animation_strobe(PixelAnimationData* data) {
+    int step = data->step(10);  // 1/10th of the cycle
+    if (step != data->temp) {
+        data->temp = step;
+        data->setPixels(data->randomColor().scale(step==0));
     }
 }
 
-void animation_sparkle(PixelAnimationData data) {
-    int step = (int) (data.cycleMillis / 10);
-    for (int idx = 0; idx < data.count; idx++) {
-        data.pixels[idx] = (random(step) == 0) ? data.randomColor() : data.pixelColor(idx).scale(0.75);
+void animation_sparkle(PixelAnimationData* data) {
+    int step = (int) (data->cycleMillis / 10);
+    for (int idx = 0; idx < data->pixelCount; idx++) {
+        data->pixels[idx] = (random(step) == 0) ? data->randomColor() : data->pixelColor(idx).scale(0.75);
     }
 }
 
-void animation_fader(PixelAnimationData data) {
-    data.setPixels(data.palettePartialStepColor());
+void animation_fader(PixelAnimationData* data) {
+    data->setPixels(data->palettePartialStepColor());
 }
 
-void animation_cycle(PixelAnimationData data) {
-    data.setPixels(data.paletteStepColor());
+void animation_cycle(PixelAnimationData* data) {
+    data->setPixels(data->paletteStepColor());
 }
 
-void animation_random(PixelAnimationData data) {
-    int step = data.paletteStep();
-    data.setPixels((step != *data.temp) ? data.randomColor() : data.pixelColor(0));
-    *data.temp = step;
+void animation_random(PixelAnimationData* data) {
+    int step = data->paletteStep();
+    data->setPixels((step != data->temp) ? data->randomColor() : data->pixelColor(0));
+    data->temp = step;
 }
 
-void animation_increment(PixelAnimationData data) {
-    int pixStep = data.pixelStep();  
-    PixelColor color = data.palettePartialStepColor();
-    for (int idx = 0; idx < data.count; idx++) {
-        data.pixels[idx] = color.scale(idx == pixStep ? 1 : 0);
+void animation_increment(PixelAnimationData* data) {
+    int pixStep = data->pixelStep();  
+    PixelColor color = data->palettePartialStepColor();
+    for (int idx = 0; idx < data->pixelCount; idx++) {
+        data->pixels[idx] = color.scale(idx == pixStep ? 1 : 0);
     }
 }
 
-void animation_decrement(PixelAnimationData data) {
-    int pixStep = data.pixelStep();
-    PixelColor color = data.palettePartialStepColor();
-    for (int idx = 0; idx < data.count; idx++) {
-        data.pixels[idx] = color.scale(idx == (data.count - 1 - pixStep) ? 1 : 0);
+void animation_decrement(PixelAnimationData* data) {
+    int pixStep = data->pixelStep();
+    PixelColor color = data->palettePartialStepColor();
+    for (int idx = 0; idx < data->pixelCount; idx++) {
+        data->pixels[idx] = color.scale(idx == (data->pixelCount - 1 - pixStep) ? 1 : 0);
     }
 }
 
-void animation_bounce(PixelAnimationData data) {
-    int pixStep = data.step(2 * data.count - 2);
-    PixelColor color = data.palettePartialStepColor();
-    for (int idx = 0; idx < data.count; idx++) {
-        int scale = (idx == (-abs(pixStep - data.count + 1) + data.count - 1)) ? 1 : 0;
-        data.pixels[idx] = color.scale(scale);
+void animation_bounce(PixelAnimationData* data) {
+    int pixStep = data->step(2 * data->pixelCount - 2);
+    PixelColor color = data->palettePartialStepColor();
+    for (int idx = 0; idx < data->pixelCount; idx++) {
+        int scale = (idx == (-abs(pixStep - data->pixelCount + 1) + data->pixelCount - 1)) ? 1 : 0;
+        data->pixels[idx] = color.scale(scale);
     }
 }
 
-void animation_scanner(PixelAnimationData data) {
-    float tail = data.count / 4;
-    float step = data.step(2 * data.count + ((tail * 4) - 1));
-    PixelColor color = data.palettePartialStepColor();
-    for (int idx = 0; idx < data.count; idx++) {
-        float scale = constrain((-abs((int) (abs((int) (step - data.count - 2 * tail)) - idx - tail)) + tail), 0, 1);
-        data.pixels[idx] = color.scale(scale);
+void animation_scanner(PixelAnimationData* data) {
+    float tail = data->pixelCount / 4;
+    float step = data->step(2 * data->pixelCount + ((tail * 4) - 1));
+    PixelColor color = data->palettePartialStepColor();
+    for (int idx = 0; idx < data->pixelCount; idx++) {
+        float scale = constrain((-abs((int) (abs((int) (step - data->pixelCount - 2 * tail)) - idx - tail)) + tail), 0, 1);
+        data->pixels[idx] = color.scale(scale);
     }
 }
 
-void animation_comet(PixelAnimationData data) {
-    float tail = data.count / 2;
-    float pixStep = data.step(2 * data.count - tail);
+void animation_comet(PixelAnimationData* data) {
+    float tail = data->pixelCount / 2;
+    float pixStep = data->step(2 * data->pixelCount - tail);
     PixelColor color;
-    for (int idx = 0; idx < data.count; idx++) {
-        float palStep = data.mapFloat(max(pixStep - idx, 0), 0, (data.count / 1.75f), 0, (*data.palette).count - 1);
-        color = data.color(palStep);
+    for (int idx = 0; idx < data->pixelCount; idx++) {
+        float palStep = data->mapFloat(max(pixStep - idx, 0), 0, (data->pixelCount / 1.75f), 0, data->paletteCount() - 1);
+        color = data->paletteColor(palStep);
         float scale = constrain((((idx - pixStep) / tail + 1.25f)) * (((idx - pixStep) < 0) ? 1 : 0), 0, 1);
-        data.pixels[idx] = color.scale(scale);
+        data->pixels[idx] = color.scale(scale);
     }
 }
 
-void animation_bars(PixelAnimationData data) {
-    int step = data.pixelStep();
-    for (int idx = 0; idx < data.count; idx++) {
-        data.pixels[idx] = data.color(((step + idx) * (*data.palette).count) / data.count);
+void animation_bars(PixelAnimationData* data) {
+    int step = data->pixelStep();
+    for (int idx = 0; idx < data->pixelCount; idx++) {
+        data->pixels[idx] = data->paletteColor((step + idx) * data->paletteCount() / data->pixelCount);
     }
 }
 
-void animation_gradient(PixelAnimationData data) {
-    float step = data.pixelStep();
-    for (int idx = 0; idx < data.count; idx++) {
-        data.pixels[idx] = data.color(((step + idx) * (*data.palette).count) / data.count);
+void animation_gradient(PixelAnimationData* data) {
+    float step = data->pixelStep();
+    for (int idx = 0; idx < data->pixelCount; idx++) {
+        data->pixels[idx] = data->paletteColor((step + idx) * data->paletteCount() / data->pixelCount);
     }
 }
 

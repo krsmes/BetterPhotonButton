@@ -19,16 +19,24 @@ limitations under the License.
 
 #include <application.h>
 
+#define BUTTON_COUNT 4
+#define BUTTON_1_PHOTON_PIN 4
+#define BUTTON_2_PHOTON_PIN 5
+#define BUTTON_3_PHOTON_PIN 6
+#define BUTTON_4_PHOTON_PIN 7
+#define BUTTON_DEBOUNCE_DELAY 50
+
+#define PIXEL_COUNT 11
+#define PIXEL_PHOTON_PIN 3
+
+#define ADXL_PHOTON_PIN A2
+#define ADXL_TOLERANCE 10
+
 
 struct PixelColor {
-    union {
-        struct {
-            byte r;
-            byte g;
-            byte b;
-        };
-        byte rgb[3];
-    };
+    byte r;
+    byte g;
+    byte b;
 
     inline PixelColor() __attribute__((always_inline)) { }
 
@@ -46,6 +54,8 @@ struct PixelColor {
         return (this->r != other.r or this->g != other.g or this->b != other.b);
     }
 
+    uint32_t rgb() { return ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b; }
+
     PixelColor interpolate(PixelColor pixel, float value) {
         byte newR = (byte) (value * (pixel.r - r) + r);
         byte newG = (byte) (value * (pixel.g - g) + g);
@@ -54,26 +64,37 @@ struct PixelColor {
     }
 
     PixelColor scale(float value) {
-        byte r0 = (byte) min(r * value, 0xFF);
-        byte g0 = (byte) min(g * value, 0xFF);
-        byte b0 = (byte) min(b * value, 0xFF);
-        return PixelColor(r0, g0, b0);
+        byte newR = (byte) min(r * value, 0xFF);
+        byte newG = (byte) min(g * value, 0xFF);
+        byte newB = (byte) min(b * value, 0xFF);
+        return PixelColor(newR, newG, newB);
     }
+
+    enum Colors: uint32_t {
+        BLACK   = 0,
+        WHITE   = 0xFFFFFF,
+        RED     = 0xFF0000,
+        GREEN   = 0x00FF00,
+        BLUE    = 0x0000FF,
+        YELLOW  = RED | GREEN,
+        CYAN    = GREEN | BLUE,
+        MAGENTA = RED | BLUE,
+    };
 };
 
 
 struct PixelPalette {
-    PixelColor *colors;
     byte count;
+    PixelColor *colors;
 
-    PixelColor getColorAt(float index) {
+    PixelColor computeColorAt(float index) {
         int first = (int) index % (count);
         int second = (int) (index + 1) % (count);
         float interpolationValue = index - (int) index;
         return colors[first].interpolate(colors[second], interpolationValue);
     }
 
-    PixelColor getRandom() {
+    PixelColor randomColor() {
         return colors[random(count)];
     }
 
@@ -93,45 +114,47 @@ extern PixelPalette paletteRYGBStripe;
 extern PixelPalette paletteRainbow;
 
 struct PixelAnimationData {
+    int pixelCount;
     PixelColor *pixels;
-    int count;
     PixelPalette *palette;
     long cycleMillis;
     unsigned long start;
     unsigned long stop;
     unsigned long updated;
-    int *temp;
+    int temp;
 
     int step(int steps) { return (int) (((updated - start) % cycleMillis) * steps / cycleMillis); }
 
     float step(float steps) { return ((updated - start) % cycleMillis) * steps / cycleMillis; }
 
-    int pixelStep() { return step(count); }  // cycle / pixels = 1 step
+    int pixelStep() { return step(pixelCount); }  // cycle / pixels = 1 step
 
-    int paletteStep() { return step((*palette).count); }  // cycle / palette-colors = 1 step
+    int paletteStep() { return step(palette->count); }  // cycle / palette-colors = 1 step
 
-    float palettePartialStep() { return step((float)(*palette).count); }
+    int paletteCount() { return palette->count; }
 
-    PixelColor paletteStepColor() { return (*palette).getColorAt(paletteStep()); }
+    float palettePartialStep() { return step((float)palette->count); }
 
-    PixelColor palettePartialStepColor() { return (*palette).getColorAt(palettePartialStep()); }
+    PixelColor paletteStepColor() { return palette->computeColorAt(paletteStep()); }
 
-    PixelColor color(float index) { return (*palette).getColorAt(index); }
+    PixelColor palettePartialStepColor() { return palette->computeColorAt(palettePartialStep()); }
 
-    PixelColor color(int index) { return (*palette).colors[index % (*palette).count]; }
+    PixelColor paletteColor(float index) { return palette->computeColorAt(index); }
 
-    PixelColor randomColor() { return (*palette).getRandom(); }
+    PixelColor paletteColor(int index) { return palette->colors[index % palette->count]; }
 
-    PixelColor pixelColor(int index) { return pixels[index % count]; }
+    PixelColor randomColor() { return palette->randomColor(); }
 
-    void setPixels(PixelColor color) { for (int i = 0; i < count; ++i) { pixels[i] = color; } }
+    PixelColor pixelColor(int index) { return pixels[index % pixelCount]; }
+
+    void setPixels(PixelColor color) { for (int i = 0; i < pixelCount; ++i) { pixels[i] = color; } }
 
     float mapFloat(float value, float minLeft, float maxLeft, float minRight, float maxRight) {
         return (value - minLeft) * (maxRight - minRight) / (maxLeft - minLeft) + minRight;
     }
 };
 
-typedef void (PixelAnimation)(PixelAnimationData data);
+typedef void (PixelAnimation)(PixelAnimationData* data);
 
 /* palette color[0] only */
 extern PixelAnimation animation_blink;
@@ -189,17 +212,20 @@ public:
 
     void setPixel(int pixel, byte r, byte g, byte b);
 
-    void setPixel(int pixel, unsigned int rgb);
+    void setPixel(int pixel, PixelColor color);
 
     void setPixels(byte r, byte g, byte b);
 
-    void setPixels(unsigned int rgb);
+    void setPixels(PixelColor color);
+
+    void setPixels(PixelColor* colors, int count);
 
     PixelColor getPixel(int pixel);
 
     /* animation */
 
-    PixelAnimationData* startPixelAnimation(PixelAnimation *animation, PixelPalette *palette = &paletteRainbow, long cycle = 1000, long duration = -1);
+    PixelAnimationData* startPixelAnimation(PixelAnimation *animation, PixelPalette *palette = &paletteRainbow,
+                                            long cycle = 1000, long duration = -1, int refresh = 1000/60);
 
     bool isPixelAnimationActive();
 
@@ -218,19 +244,12 @@ private:
 
     PixelAnimation *animationFunction;
     PixelAnimationData animationData = PixelAnimationData();
-    int animationRefresh = 1000/60;
-    int animationTemp = 0;
+    int animationRefresh;
 };
 
 /**********************************************************************************************************************/
 
 
-#define BUTTON_COUNT 4
-#define BUTTON_1_PHOTON_PIN 4
-#define BUTTON_2_PHOTON_PIN 5
-#define BUTTON_3_PHOTON_PIN 6
-#define BUTTON_4_PHOTON_PIN 7
-#define BUTTON_DEBOUNCE_DELAY 50
 
 
 
@@ -256,9 +275,6 @@ private:
     unsigned long endTime;
     bool refresh;
 };
-
-#define PIXEL_COUNT 11
-#define PIXEL_PHOTON_PIN 3
 
 
 
@@ -316,9 +332,6 @@ private:
     MotionHandler *motionHandler;
 };
 
-
-#define ADXL_PHOTON_PIN A2
-#define ADXL_TOLERANCE 10
 
 #define SPI_READ_INSTRUCTION 0x0B
 #define SPI_WRITE_INSTRUCTION 0x0A
