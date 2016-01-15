@@ -16,8 +16,11 @@ include_directories(
 )
 
 set(SOURCE_FILES
-        BetterPhotonButton.cpp BetterPhotonButton.h
-        Animations.cpp
-        SerialTesting.cpp)
+        firmware/BetterPhotonButton.cpp firmware/BetterPhotonButton.h
+        firmware/examples/AnimateAccel.cpp
+        firmware/examples/Animations.cpp
+        firmware/examples/SerialTesting.cpp
+        firmware/examples/Simple.cpp
+        firmware/examples/Incrementor.cpp)
 
-#add_executable(BetterPhotonButton ${SOURCE_FILES})
+add_executable(BetterPhotonButton ${SOURCE_FILES})

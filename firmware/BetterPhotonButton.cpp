@@ -226,6 +226,8 @@ void PhotonWS2812Pixel::setup() {
     digitalWrite(pin, LOW);
 }
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "CannotResolve"
 void PhotonWS2812Pixel::update(bool refresh) {
     if (!this->refresh && !refresh) return;
     // Data latch = 50 microsecond pause in the output stream.  Rather than
@@ -339,9 +341,11 @@ void PhotonWS2812Pixel::update(bool refresh) {
     } // end while(i) ... no more pixels
 
     __enable_irq();
+
     endTime = micros(); // Save EOD time for latch on next call
     this->refresh = false;
 }
+#pragma clang diagnostic pop
 
 void PhotonWS2812Pixel::setPixelColor(int pixel, PixelColor pixelColor) {
     if (pixel < pixelCount) {
