@@ -22,7 +22,7 @@ limitations under the License.
  * BetterPhotonButton
  */
 
-byte buttonPins[BUTTON_COUNT] = {BUTTON_1_PHOTON_PIN, BUTTON_2_PHOTON_PIN, BUTTON_3_PHOTON_PIN, BUTTON_4_PHOTON_PIN };
+byte buttonPins[BUTTON_COUNT] = {BUTTON_1_PHOTON_PIN, BUTTON_2_PHOTON_PIN, BUTTON_3_PHOTON_PIN, BUTTON_4_PHOTON_PIN};
 bool buttonState[BUTTON_COUNT] = {0};
 bool buttonPrevState[BUTTON_COUNT] = {0};
 int buttonPrevUpdate[BUTTON_COUNT] = {0};
@@ -63,10 +63,7 @@ void BetterPhotonButton::update(system_tick_t millis) {
 }
 
 bool BetterPhotonButton::isButtonPressed(byte button) {
-    if (button < BUTTON_COUNT) {
-        return buttonState[button];
-    }
-    return false;
+    return button < BUTTON_COUNT ? buttonState[button] : false;
 }
 
 bool BetterPhotonButton::allButtonsPressed() {
@@ -154,33 +151,28 @@ PhotonADXL362Accel* BetterPhotonButton::startAccelerometer(unsigned int refreshR
  */
 
 void BetterPhotonButton::updateButtonsState(system_tick_t millis) {
-    for (byte idx = 0; idx < BUTTON_COUNT; idx++) {
-        updateButtonState(idx, millis);
-    }
+    for (byte idx = 0; idx < BUTTON_COUNT; idx++) { updateButtonState(idx, millis); }
 }
 
 void BetterPhotonButton::updateButtonState(byte button, system_tick_t millis) {
-    if (button < BUTTON_COUNT) {
-        bool currentState = (bool) !digitalRead(buttonPins[button]);
-        if (currentState != buttonPrevState[button]) {
-            buttonPrevState[button] = currentState;
-            buttonPrevUpdate[button] = millis;
-        }
-        if ((millis - buttonPrevUpdate[button] > BUTTON_DEBOUNCE_DELAY) &&
-            (currentState == buttonPrevState[button]) &&
-            (currentState != buttonState[button])) {
-            buttonState[button] = currentState;
-            // call the pressed or released handler function if one has been set for this button
-            ButtonHandler *handler = currentState ? buttonPressed[button] : buttonReleased[button];
-            if (handler) { (*handler)((int)button, currentState); }
-        }
+    bool currentState = (bool) !digitalRead(buttonPins[button]);
+    if (currentState != buttonPrevState[button]) {
+        buttonPrevState[button] = currentState;
+        buttonPrevUpdate[button] = millis;
+    }
+    if ((millis - buttonPrevUpdate[button] > BUTTON_DEBOUNCE_DELAY) &&
+        (currentState == buttonPrevState[button]) &&
+        (currentState != buttonState[button])) {
+        buttonState[button] = currentState;
+        // call the pressed or released handler function if one has been set for this button
+        ButtonHandler *handler = currentState ? buttonPressed[button] : buttonReleased[button];
+        if (handler) { (*handler)((int)button, currentState); }
     }
 }
 
 void BetterPhotonButton::updateAnimation(system_tick_t millis) {
     if ((*animationFunction) && (millis > animationData.updated + animationRefresh)) {
         if (animationData.stop > animationData.start && millis > animationData.stop) {
-            animationFunction = NULL;
             setPixels(0);
         }
         else {
