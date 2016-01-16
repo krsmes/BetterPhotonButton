@@ -42,9 +42,11 @@ struct PixelColor {
 
     inline PixelColor() __attribute__((always_inline)) { }
 
+    /* create a color with the given red, green, and blue values */
     inline PixelColor(byte red, byte green, byte blue)  __attribute__((always_inline))
             : r(red), g(green), b(blue) { }
 
+    /* create a color with the given 0xRRGGBB value */
     inline PixelColor(uint32_t rgb)  __attribute__((always_inline))
             : r((byte) ((rgb >> 16) & 0xFF)), g((byte) ((rgb >> 8) & 0xFF)), b((byte) ((rgb >> 0) & 0xFF)) { }
 
@@ -56,15 +58,18 @@ struct PixelColor {
         return (this->r != other.r or this->g != other.g or this->b != other.b);
     }
 
+    /* return the current color as 0xRRGGBB */
     uint32_t rgb() { return ((uint32_t)r << 16) | ((uint32_t)g <<  8) | b; }
 
-    PixelColor interpolate(PixelColor pixel, float value) {
-        byte newR = (byte) (value * (pixel.r - r) + r);
-        byte newG = (byte) (value * (pixel.g - g) + g);
-        byte newB = (byte) (value * (pixel.b - b) + b);
+    /* compute a new color between the current one and given one using the given fractional value */
+    PixelColor interpolate(PixelColor color, float value) {
+        byte newR = (byte) (value * (color.r - r) + r);
+        byte newG = (byte) (value * (color.g - g) + g);
+        byte newB = (byte) (value * (color.b - b) + b);
         return PixelColor(newR, newG, newB);
     }
 
+    /* multiply the current color by the given scale value */
     PixelColor scale(float value) {
         byte newR = (byte) min(r * value, 0xFF);
         byte newG = (byte) min(g * value, 0xFF);
@@ -89,6 +94,7 @@ struct PixelPalette {
     byte count;
     PixelColor *colors;
 
+    /* return a color at the given index, if the index is fractional compute the proper color between the two indices */
     PixelColor computeColorAt(float index) {
         int first = (int) index % (count);
         int second = (int) (index + 1) % (count);
@@ -96,6 +102,7 @@ struct PixelPalette {
         return colors[first].interpolate(colors[second], interpolationValue);
     }
 
+    /* return one of the palette colors randomly */
     PixelColor randomColor() {
         return colors[random(count)];
     }
@@ -125,29 +132,35 @@ struct PixelAnimationData {
     unsigned long updated;
     int temp;
 
+    /* return the current step, given the number of steps, based on time and cycle time */
     int step(int steps) { return (int) (((updated - start) % cycleMillis) * steps / cycleMillis); }
 
+    /* return the current fractional step, given the number of steps, based on time and cycle time */
     float step(float steps) { return ((updated - start) % cycleMillis) * steps / cycleMillis; }
 
-    int pixelStep() { return step(pixelCount); }  // cycle / pixels = 1 step
+    /* return the size of the color palatte */
+    inline int paletteCount() { return palette->count; }
 
-    int paletteStep() { return step(palette->count); }  // cycle / palette-colors = 1 step
+    /* return the current step as pixel index */
+    inline int pixelStep() { return step(pixelCount); }  // cycle / pixels = 1 step
 
-    int paletteCount() { return palette->count; }
+    /* return the current step as palatte index */
+    inline int paletteStep() { return step(palette->count); }  // cycle / palette-colors = 1 step
 
-    float palettePartialStep() { return step((float)palette->count); }
+    /* return the current step as fractional palatte index */
+    inline float palettePartialStep() { return step((float)palette->count); }
 
-    PixelColor paletteStepColor() { return palette->computeColorAt(paletteStep()); }
+    inline PixelColor paletteStepColor() { return palette->computeColorAt(paletteStep()); }
 
-    PixelColor palettePartialStepColor() { return palette->computeColorAt(palettePartialStep()); }
+    inline PixelColor palettePartialStepColor() { return palette->computeColorAt(palettePartialStep()); }
 
-    PixelColor paletteColor(float index) { return palette->computeColorAt(index); }
+    inline PixelColor paletteColor(float index) { return palette->computeColorAt(index); }
 
-    PixelColor paletteColor(int index) { return palette->colors[index % palette->count]; }
+    inline PixelColor paletteColor(int index) { return palette->colors[index % palette->count]; }
 
-    PixelColor randomColor() { return palette->randomColor(); }
+    inline PixelColor randomColor() { return palette->randomColor(); }
 
-    PixelColor pixelColor(int index) { return pixels[index % pixelCount]; }
+    inline PixelColor pixelColor(int index) { return pixels[index % pixelCount]; }
 
     void setPixels(PixelColor color) { for (int i = 0; i < pixelCount; ++i) { pixels[i] = color; } }
 
@@ -262,12 +275,17 @@ public:
 
     /* accelerometer */
 
+    /* initiate the accelerometer, set it update at the given refresh rate, and return pointer to it */
     PhotonADXL362Accel* startAccelerometer(unsigned int refreshRate = 1000/10);
 
     /* buzzer */
 
-    int playNote(char* current, int duration = 1000/4);
+    /* play the given note for the given duration (returns immediately)
+     * examples: "G" or "G5" = 784Hz, "G4" or "G-" = 392Hz, "G6" or "G+" = 1568Hz , "G#" = 831Hz, "Gb" = 740Hz */
+    int playNote(const char* current, int duration = 1000/4);
 
+    /* start the given sequence of notes (returns immediately)
+     * example: "C-:8,E-,G-,C,G:4" plays 1/8th notes C4, E4, G4, C5 and 1/4 note G5 */
     void playNotes(String notes, int defaultDuration = 1000/4);
 
 private:
@@ -329,22 +347,34 @@ public:
 
     void update(system_tick_t millis);
 
+    /* set the callback function for when motion changes between in-motion and not-in-motion */
     void setMotionHandler(MotionHandler *handler);
 
+    /* return true if not within the initial calibration values */
     unsigned long inMotion();
 
+    /* return true if within the initial calibration values */
     unsigned long notInMotion();
 
+    /* compute the pitch: ( ( arctan( x / squareroot( y^2 + z^2 ) ) * 180 ) / PI )  */
     double getPitch();
 
+    /* compute the roll: ( ( arctan( -y / z ) * 180 ) / PI )  */
     double getRoll();
 
+    /* compute the current angle (0..359), 0 = right, 90 = top, 180 = left, 270 = bottom */
     int getAngle();
 
+    /* conver the angle to azimuth (0..360), 0 = top, 90 = right, 180 = bottom, 270 = left */
     int getAzimuth();
 
+    /* direct access to current state */
     enum State: int { WAITING, STARTUP, RESET, POWER, CALIBRATING, RUNNING } state;
+
+    /* direct access to x, y, z, and t (internal raw temperature value) */
     int16_t x, y, z, t;
+
+    /* direct access to fx, fy, fz (weighted 50/50 between the last two updates, less 'jumpy') */
     double fx, fy, fz;
 
 private:
@@ -361,9 +391,9 @@ private:
     int stateWait[6] = { 100, 100, 10, 10, 10, 0 };
 
     byte pin;
-    int16_t xMin, xMax, xZero;
-    int16_t yMin, yMax, yZero;
-    int16_t zMin, zMax, zZero;
+    int16_t xMin, xMax;
+    int16_t yMin, yMax;
+    int16_t zMin, zMax;
 
     int calibrationCount;
     unsigned long motionMillis;

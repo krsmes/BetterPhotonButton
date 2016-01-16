@@ -159,7 +159,7 @@ PhotonADXL362Accel* BetterPhotonButton::startAccelerometer(unsigned int refreshR
     return &accelerometer;
 }
 
-int BetterPhotonButton::playNote(char* current, int duration) {
+int BetterPhotonButton::playNote(const char* current, int duration) {
     int freq = noteToFrequency(current);
 
     // compute the note time up to two digits between the colon and the comma or end-of-string
@@ -486,9 +486,9 @@ void PhotonADXL362Accel::stateCalibrating() {
     if (y < yMin) yMin = y; else if (y > yMax) yMax = y;
     if (z < zMin) zMin = z; else if (z > zMax) zMax = z;
     if (calibrationCount-- == 0) {
-        xMin -= ADXL_TOLERANCE; xMax += ADXL_TOLERANCE; xZero = (xMin + xMax) / 2;
-        yMin -= ADXL_TOLERANCE; yMax += ADXL_TOLERANCE; yZero = (yMin + yMax) / 2;
-        zMin -= ADXL_TOLERANCE; zMax += ADXL_TOLERANCE; zZero = (zMin + zMax) / 2;
+        xMin -= ADXL_TOLERANCE; xMax += ADXL_TOLERANCE;
+        yMin -= ADXL_TOLERANCE; yMax += ADXL_TOLERANCE;
+        zMin -= ADXL_TOLERANCE; zMax += ADXL_TOLERANCE;
         state = RUNNING;
     }
 }
@@ -547,6 +547,7 @@ void PhotonADXL362Accel::spiReadXYZT() {
 }
 
 
+
 /*************************
  * notes
  */
@@ -591,7 +592,6 @@ int noteToFrequency(const char *note_cstr) {
 /*************************
  * animations
  */
-
 
 PixelColor colorsBW[] = { PixelColor::WHITE, PixelColor::BLACK };  // white is first so that blink/fade animations work
 PixelColor colorsRGB[] = { PixelColor::RED, PixelColor::GREEN, PixelColor::BLUE };
