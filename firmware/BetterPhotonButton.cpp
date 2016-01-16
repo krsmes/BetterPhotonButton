@@ -56,6 +56,7 @@ void BetterPhotonButton::setup(void) {
 }
 
 void BetterPhotonButton::update(system_tick_t millis) {
+    updatePlayNotes(millis);
     updateAnimation(millis);
     pixelRing.update();
     accelerometer.update(millis);
@@ -111,9 +112,22 @@ void BetterPhotonButton::setPixels(PixelColor color) {
 
 void BetterPhotonButton::setPixels(PixelColor* colors, int count) {
     animationFunction = NULL;
-    for (int idx = 0; idx < PIXEL_COUNT; idx++) {
-        pixelRing.setPixelColor(idx, idx < count ? colors[idx] : 0);
-    }
+    for (int idx = 0; idx < PIXEL_COUNT; idx++) { pixelRing.setPixelColor(idx, idx < count ? colors[idx] : 0); }
+}
+
+void BetterPhotonButton::updatePixel(int pixel, PixelColor color) {
+    pixelRing.setPixelColor(pixel, color);
+    pixelRing.update(true);
+};
+
+void BetterPhotonButton::updatePixels(PixelColor color) {
+    for (int idx = 0; idx < PIXEL_COUNT; idx++) { pixelRing.setPixelColor(idx, color); }
+    pixelRing.update(true);
+};
+
+void BetterPhotonButton::updatePixels(PixelColor* colors, int count) {
+    for (int idx = 0; idx < PIXEL_COUNT; idx++) { pixelRing.setPixelColor(idx, idx < count ? colors[idx] : 0); }
+    pixelRing.update(true);
 }
 
 PixelColor BetterPhotonButton::getPixel(int pixel) {
@@ -143,6 +157,33 @@ void BetterPhotonButton::rainbow(long cycle, long duration) {
 PhotonADXL362Accel* BetterPhotonButton::startAccelerometer(unsigned int refreshRate) {
     accelerometer.setup(refreshRate);
     return &accelerometer;
+}
+
+int BetterPhotonButton::playNote(char* current, int duration) {
+    int freq = noteToFrequency(current);
+
+    // compute the note time up to two digits between the colon and the comma or end-of-string
+    // e.g. "C:8," = 1/8 note; "G#+:16" = 16th note
+    char* comma = strchr(current, ',');
+    char* colon = strchr(current, ':');
+    int time = 0;
+    if (comma || colon) {
+        if (colon && (!comma || colon < comma)) {
+            time = *++colon - '0';
+            if (*++colon != 0 && colon != comma) { time = time * 10 + (*colon - '0'); }
+        }
+    }
+    // turn the time into a duration
+    if (time) { duration = (time == 1) ? 1000 : 1000/time; }
+
+    tone(BUZZER_PHOTON_PIN, (unsigned int) freq, (unsigned long) duration);
+    return duration;
+}
+
+void BetterPhotonButton::playNotes(String notes, int defaultDuration) {
+    notesToPlay = (char *) notes.c_str();
+    noteDuration = defaultDuration;
+    notesNextUpdate = 0;
 }
 
 
@@ -180,6 +221,15 @@ void BetterPhotonButton::updateAnimation(system_tick_t millis) {
             animationFunction(&animationData);
             pixelRing.triggerRefresh();
         }
+    }
+}
+
+void BetterPhotonButton::updatePlayNotes(system_tick_t millis) {
+    if (notesToPlay && (millis >= notesNextUpdate)) {
+        noteDuration = playNote(notesToPlay, noteDuration);
+        notesNextUpdate = millis + noteDuration;
+        notesToPlay = strchr(notesToPlay, ',');  // move ahead to next comma
+        if (notesToPlay) { notesToPlay++; }
     }
 }
 
@@ -496,6 +546,45 @@ void PhotonADXL362Accel::spiReadXYZT() {
     digitalWrite(pin, HIGH);
 }
 
+
+/*************************
+ * notes
+ */
+
+int bpb_noteToFrequency(const int note, const int octave = 5) {
+    // see http://www.phy.mtu.edu/~suits/notefreqs.html
+    return (int) lround(2093 * pow(1.059463094359, (12 * (octave - 7) + note))); // C7=2093.0
+}
+
+int bpb_noteIndex(const char note) {
+    switch (note) {
+        case 'C': return 0;
+        case 'D': return 2;
+        case 'E': return 4;
+        case 'F': return 5;
+        case 'G': return 7;
+        case 'A': return 9;
+        case 'B': return 11;
+        default: return -1000; // rest
+    }
+}
+
+int noteToFrequency(const char *note_cstr) {
+    int note = -1000;
+    int octave = 5;
+    int idx = 0;
+    // examples: "C" & "C5" are equivalent, "C4" & "C-" are equivalent, "F#" & "Gb" are equivalent
+    while (note_cstr[idx] != 0 && note_cstr[idx] != ':' && note_cstr[idx] != ',') {
+        char next = note_cstr[idx++];
+        if (next >= 'A' && next <= 'G') { note = bpb_noteIndex(next); }
+        else if (next >= '0' && next <= '8') { octave = next - '0'; }
+        else if (next == '+') { octave++; }
+        else if (next == '-') { octave--; }
+        else if (next == '#') { note++; }
+        else if (next == 'b') { note--; }
+    }
+    return bpb_noteToFrequency(note, octave);
+}
 
 
 

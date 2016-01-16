@@ -20,7 +20,8 @@ set(SOURCE_FILES
         firmware/examples/AnimateAccel.cpp
         firmware/examples/Animations.cpp
         firmware/examples/SerialTesting.cpp
-        firmware/examples/Simple.cpp
-        firmware/examples/Incrementor.cpp)
+        firmware/examples/SimpleRainbow.cpp
+        firmware/examples/Incrementor.cpp
+        firmware/examples/ToneTest.cpp)
 
 add_executable(BetterPhotonButton ${SOURCE_FILES})

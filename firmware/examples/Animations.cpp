@@ -5,8 +5,6 @@
 SYSTEM_THREAD(ENABLED);
 
 
-BetterPhotonButton bb = BetterPhotonButton();
-
 // all the predefined animations
 PixelAnimation *animations[] = {
         &animation_blink,
@@ -28,15 +26,12 @@ PixelAnimation *animations[] = {
         &animation_gradient,
 };
 
-int currentAnimation = 0;
-
-
 // some custom palettes
 PixelColor colorsRainbowStripe[] = {
         0xFF0000, 0x000000, 0xAB5500, 0x000000, 0xABAB00, 0x000000, 0x00FF00, 0x000000,
         0x00AB55, 0x000000, 0x0000FF, 0x000000, 0x5500AB, 0x000000, 0xAB0055, 0x000000
 };
-PixelColor colorsParty[] = {
+PixelColor colorsMix[] = {
         0x5500AB, 0x84007C, 0xB5004B, 0xE5001B, 0xE81700, 0xB84700, 0xAB7700, 0xABAB00,
         0xAB5500, 0xDD2200, 0xF2000E, 0xC2003E, 0x8F0071, 0x5F00A1, 0x2F00D0, 0x0007F9
 };
@@ -52,28 +47,35 @@ PixelPalette palettes[] = {
         paletteRYGBStripe,
         paletteRainbow,
         { 16, colorsRainbowStripe },
-        { 16, colorsParty },
+        { 16, colorsMix},
         { 3, colorsWRY },
 };
 
+
+/*
+ * setup/loop
+ */
+
+BetterPhotonButton bb = BetterPhotonButton();
+int currentAnimation = 0;
 int currentPalette = 0;
 
-
-// forward declarations
+// forward declarations (these are not needed if you put setup/loop at the bottom of the file)
 void buttonHandler(int button, bool state);
 void startAnimation(int button, bool state);
 
 void setup() {
     bb.setup();
-    bb.setPressedHandler(&buttonHandler);
-    bb.setReleasedHandler(&buttonHandler);
-    bb.setReleasedHandler(0, &startAnimation); // start animations when top button released
+    bb.setPressedHandler(&buttonHandler);  // set buttonHandler() as handler for all buttons when pressed
+    bb.setReleasedHandler(&buttonHandler);  // set buttonHandler() as handler for all buttons when released
+    bb.setReleasedHandler(0, &startAnimation);  // start animations when top button (0) released
     bb.rainbow(500, 1000);  // loop rainbow twice in one second at startup
 }
 
 void loop() {
     bb.update(millis());  // this call is where all the work is done
 }
+
 
 /*
  * if animations are active
@@ -95,11 +97,9 @@ void buttonHandler(int button, bool pressed) {
             else if (button == 0) { currentPalette++; }
             else if (button == 2) { currentPalette--; }
 
-            if (currentPalette < 0) { currentPalette = arraySize(palettes) - 1; }
-            if (currentPalette == arraySize(palettes)) { currentPalette = 0; }
-
-            if (currentAnimation < 0) { currentAnimation = arraySize(animations) - 1; }
-            if (currentAnimation == arraySize(animations)) { currentAnimation = 0; }
+            // cycle around if either palette or animation go below zero or above array size
+            currentPalette = (int) ((currentPalette < 0) ? arraySize(palettes) - 1 : currentPalette % arraySize(palettes));
+            currentAnimation = (int) ((currentAnimation < 0) ? arraySize(animations) - 1 : currentAnimation % arraySize(animations));
 
             bb.startPixelAnimation(animations[currentAnimation], &palettes[currentPalette], 2000);
         }
@@ -117,6 +117,7 @@ void buttonHandler(int button, bool pressed) {
     }
 }
 
+/* simple start the current animation with the current palette with a 2 second cycle time */
 void startAnimation(int button, bool pressed) {
     bb.startPixelAnimation(animations[currentAnimation], &palettes[currentPalette], 2000);
 }

@@ -26,6 +26,8 @@ limitations under the License.
 #define BUTTON_4_PHOTON_PIN 7
 #define BUTTON_DEBOUNCE_DELAY 50
 
+#define BUZZER_PHOTON_PIN D0
+
 #define PIXEL_COUNT 11
 #define PIXEL_PHOTON_PIN 3
 
@@ -184,56 +186,89 @@ extern PixelAnimation animation_gradient;
 class PhotonADXL362Accel;
 
 typedef void (ButtonHandler)(int button, bool pressed);
+extern int noteToFrequency(const char *note_cstr);
 
 
 class BetterPhotonButton {
 public:
     BetterPhotonButton();
 
+    // initialize all the things, must be called in application's setup()
     void setup(void);
 
+    // update all the things (pixels, buttons, accelermeter, buzzer), call this from the application's loop()
     void update(system_tick_t millis);
 
     /* buttons */
 
+    // true if given button (0 based) is pressed
     bool isButtonPressed(byte button);
 
+    // true if all buttons are currently pressed
     bool allButtonsPressed();
 
+    // set the callback function for when any button is pressed
     void setPressedHandler(ButtonHandler *handler);
 
+    // set the callback function for when the given button (0 based) is pressed
     void setPressedHandler(byte button, ButtonHandler *handler);
 
+    // set the callback function for when any button is released
     void setReleasedHandler(ButtonHandler *handler);
 
+    // set the callback function for when the given button (0 based) is pressed
     void setReleasedHandler(byte button, ButtonHandler *handler);
 
     /* pixels */
 
+    // set given pixel (0 based) to given rgb colors, refreshes pixels on next update()
     void setPixel(int pixel, byte r, byte g, byte b);
 
+    // set given pixel (0 based) to given color (0xRRGGBB or PixelColor::X), refreshes pixels on next update()
     void setPixel(int pixel, PixelColor color);
 
+    // set all pixels to given color, refreshes pixels on next update()
     void setPixels(byte r, byte g, byte b);
 
+    // set all pixels to given color, refreshes pixels on next update()
     void setPixels(PixelColor color);
 
+    // set all pixels to given colors array, refreshes pixels on next update()
     void setPixels(PixelColor* colors, int count);
 
+    // like set but forces immediate refresh, does not disable animation
+    void updatePixel(int pixel, PixelColor color);
+
+    // like set but forces immediate refresh, does not disable animation
+    void updatePixels(PixelColor color);
+
+    // like set but forces immediate refresh, does not disable animation
+    void updatePixels(PixelColor* colors, int count);
+
+    // retrieve the given pixel's color
     PixelColor getPixel(int pixel);
 
     /* animation */
 
+    // start a pixel animation using the given animation function
     PixelAnimationData* startPixelAnimation(PixelAnimation *animation, PixelPalette *palette = &paletteRainbow,
                                             long cycle = 1000, long duration = -1, int refresh = 1000/60);
 
+    // true if an animation is currently running
     bool isPixelAnimationActive();
 
+    // display the &animation_gradient and &palette_rainbow with the given cycle times and duration, -1=indefinite
     void rainbow(long cycle = 1000, long duration = -1);
 
     /* accelerometer */
 
     PhotonADXL362Accel* startAccelerometer(unsigned int refreshRate = 1000/10);
+
+    /* buzzer */
+
+    int playNote(char* current, int duration = 1000/4);
+
+    void playNotes(String notes, int defaultDuration = 1000/4);
 
 private:
     void updateButtonsState(system_tick_t millis);
@@ -242,9 +277,14 @@ private:
 
     void updateAnimation(system_tick_t millis);
 
+    void updatePlayNotes(system_tick_t millis);
+
     PixelAnimation *animationFunction;
     PixelAnimationData animationData = PixelAnimationData();
     int animationRefresh;
+    char* notesToPlay;
+    int noteDuration;
+    system_tick_t notesNextUpdate;
 };
 
 /**********************************************************************************************************************/
