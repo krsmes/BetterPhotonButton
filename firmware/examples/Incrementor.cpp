@@ -15,11 +15,11 @@ void animateCount(PixelAnimationData* data) {
 
 /* increment/decrement count by button (0 = top, 1 = right, 2 = bottom, 3 = left) */
 void buttonHandler(int button, bool state) {
-    if (button == 0) { count++; }
-    if (button == 1) { count = PIXEL_COUNT; }
-    if (button == 2) { count--; }
-    if (button == 3) { count = 0; }
-    count %= PIXEL_COUNT;
+    if (button == 0) { count = PIXEL_COUNT; }
+    if (button == 1) { count++; }
+    if (button == 2) { count = 0; }
+    if (button == 3) { count--; }
+    count = count < 0 ? PIXEL_COUNT: count % (PIXEL_COUNT + 1);
 }
 
 
