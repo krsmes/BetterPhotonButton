@@ -159,31 +159,48 @@ PhotonADXL362Accel* BetterPhotonButton::startAccelerometer(unsigned int refreshR
     return &accelerometer;
 }
 
-int BetterPhotonButton::playNote(const char* current, int duration) {
-    int freq = noteToFrequency(current);
-
-    // compute the note time up to two digits between the colon and the comma or end-of-string
-    // e.g. "C:8," = 1/8 note; "G#+:16" = 16th note
-    char* comma = strchr(current, ',');
-    char* colon = strchr(current, ':');
+int BetterPhotonButton::playNote(char *current, int duration) {
     int time = 0;
-    if (comma || colon) {
-        if (colon && (!comma || colon < comma)) {
-            time = *++colon - '0';
-            if (*++colon != 0 && colon != comma) { time = time * 10 + (*colon - '0'); }
+    // if the first char is a digit assume the time is first, e.g. "16g5" = 16th, "8p" = 1/8th
+    if (isDigit(*current)) {
+        time = *current++ - '0';
+        if (isDigit(*current)) { time = (time * 10) + (*current++ - '0'); }
+    }
+
+    int freq = noteToFrequency(current, noteOctave);
+
+    // check for dotted note (increase duration by 50%) or for time after note format (:nn)
+    byte dots = 0;
+    while (*current++ != 0 && *current != ',') {
+        if (*current == '.') { dots++; }
+        if (*current == ':') {
+            // e.g. "C:8," = 1/8 note; "G#+:16" = 16th note
+            if (isDigit(*current++)) {
+                time = *current - '0';
+                if (isDigit(*current++)) { time = (time * 10) + (*current - '0'); }
+            }
         }
     }
     // turn the time into a duration
-    if (time) { duration = (time == 1) ? 1000 : 1000/time; }
+    if (time) { duration = noteWholeDuration / time; }
+    if (dots) { duration = (int) (duration * (2 - (1 / pow(2, dots)))); }
 
-    tone(BUZZER_PHOTON_PIN, (unsigned int) freq, (unsigned long) duration);
-    return duration;
+    //Serial.printlnf("freq=%d, duration=%d", freq, duration);
+    tone(BUZZER_PHOTON_PIN, (unsigned int) freq, (unsigned long) duration - 2);  // -2ms for a gap between notes
+    return duration;  // return the actual duration of the played note
 }
 
-void BetterPhotonButton::playNotes(String notes, int defaultDuration) {
-    notesToPlay = (char *) notes.c_str();
-    noteDuration = defaultDuration;
-    notesNextUpdate = 0;
+void BetterPhotonButton::playNotes(const String &notes, int bpm, byte octave) {
+    notesToPlay = String(notes);                           // copy it
+    noteCurrent = (char *) notes.c_str();                  // get char* to first character
+    noteOctave = octave;                                   // default octave
+    noteWholeDuration = 60000 / bpm * 4;                   // length of a whole note
+    noteDuration = noteWholeDuration / DEFAULT_NOTE_TIME;  // default duration to quarter note
+    noteNextUpdate = 0;                                    // now
+}
+
+void BetterPhotonButton::stopPlayingNotes() {
+    noteCurrent = NULL;
 }
 
 
@@ -225,12 +242,46 @@ void BetterPhotonButton::updateAnimation(system_tick_t millis) {
 }
 
 void BetterPhotonButton::updatePlayNotes(system_tick_t millis) {
-    if (notesToPlay && (millis >= notesNextUpdate)) {
-        noteDuration = playNote(notesToPlay, noteDuration);
-        notesNextUpdate = millis + noteDuration;
-        notesToPlay = strchr(notesToPlay, ',');  // move ahead to next comma
-        if (notesToPlay) { notesToPlay++; }
+    if (noteCurrent && (millis >= noteNextUpdate)) {
+        if (*noteCurrent == ':') {
+            changeNoteSettings(noteCurrent);
+        }
+        else {
+            noteNextUpdate = millis + playNote(noteCurrent, noteDuration);  // next update after duration
+        }
+        noteCurrent = strchr(noteCurrent, ',');  // move ahead to the next comma
+        if (noteCurrent) while (*noteCurrent == ',' || *noteCurrent == ' ') noteCurrent++;  // move past commas and spaces
     }
+}
+
+void BetterPhotonButton::changeNoteSettings(char *current) {
+    char operation = 0;
+    int value = 0;
+    // ":x=nnn," or ":nnn" -- operation = x, value = nnn
+    while (*current++ != 0 && *current != ',') {
+        if (*current == '=') { operation = *(current - 1); }
+        if (isDigit(*current)) { value = (value * 10) + (*current - '0'); }
+    }
+    switch (operation) {
+        // change bpm
+        case 'b':
+        case 'B':
+            noteWholeDuration = 60000 / value * 4;
+            // note: always set d=n after b=n, otherwise bpm always resets to quarter notes
+            noteDuration = noteWholeDuration / DEFAULT_NOTE_TIME;
+            break;
+        // change octave
+        case 'o':
+        case 'O':
+            noteOctave = (byte) value;
+            break;
+        // change duration
+        case 'd':
+        case 'D':
+        default:
+            if (value) { noteDuration = noteWholeDuration / value; };
+    }
+    //Serial.printlnf("octave=%d, duration=%d, whole=%d", noteOctave, noteDuration, noteWholeDuration);
 }
 
 
@@ -552,37 +603,37 @@ void PhotonADXL362Accel::spiReadXYZT() {
  * notes
  */
 
-int bpb_noteToFrequency(const int note, const int octave = 5) {
+int bpb_noteToFrequency(const int note, const int octave) {
     // see http://www.phy.mtu.edu/~suits/notefreqs.html
     return (int) lround(2093 * pow(1.059463094359, (12 * (octave - 7) + note))); // C7=2093.0
 }
 
 int bpb_noteIndex(const char note) {
     switch (note) {
-        case 'C': return 0;
-        case 'D': return 2;
-        case 'E': return 4;
-        case 'F': return 5;
-        case 'G': return 7;
-        case 'A': return 9;
-        case 'B': return 11;
+        case 'c': case 'C': return 0;
+        case 'd': case 'D': return 2;
+        case 'e': case 'E': return 4;
+        case 'f': case 'F': return 5;
+        case 'g': case 'G': return 7;
+        case 'a': case 'A': return 9;
+        case 'b': case 'B': return 11;
         default: return -1000; // rest
     }
 }
 
-int noteToFrequency(const char *note_cstr) {
-    int note = -1000;
-    int octave = 5;
+int noteToFrequency(const char *note_cstr, byte octave) {
+    int note = 0;
     int idx = 0;
     // examples: "C" & "C5" are equivalent, "C4" & "C-" are equivalent, "F#" & "Gb" are equivalent
     while (note_cstr[idx] != 0 && note_cstr[idx] != ':' && note_cstr[idx] != ',') {
         char next = note_cstr[idx++];
-        if (next >= 'A' && next <= 'G') { note = bpb_noteIndex(next); }
-        else if (next >= '0' && next <= '8') { octave = next - '0'; }
+        if ((next >= 'a' && next <= 'g') || (next >= 'A' && next <= 'G')) { note += bpb_noteIndex(next); }
+        else if ((next > 'g' && next <= 'z') || (next > 'G' && next <= 'Z')) { note = -1000; }
+        else if (next >= '0' && next <= '8') { octave = (byte) next - '0'; }
         else if (next == '+') { octave++; }
         else if (next == '-') { octave--; }
         else if (next == '#') { note++; }
-        else if (next == 'b') { note--; }
+        else if (next == '_') { note--; }
     }
     return bpb_noteToFrequency(note, octave);
 }
@@ -590,20 +641,26 @@ int noteToFrequency(const char *note_cstr) {
 
 
 /*************************
- * animations
+ * palettes
  */
 
-PixelColor colorsBW[] = { PixelColor::WHITE, PixelColor::BLACK };  // white is first so that blink/fade animations work
-PixelColor colorsRGB[] = { PixelColor::RED, PixelColor::GREEN, PixelColor::BLUE };
-PixelColor colorsRYGB[] = { PixelColor::RED, PixelColor::YELLOW, PixelColor::GREEN, PixelColor::BLUE };
-PixelColor colorsRYGBStripe[] = { PixelColor::RED, 0, PixelColor::YELLOW, 0, PixelColor::GREEN, 0,  PixelColor::BLUE, 0 };
-PixelColor colorsRainbow[] = { 0xFF0000, 0xAB5500, 0xABAB00, 0x00FF00, 0x00AB55, 0x0000FF, 0x5500AB, 0xAB0055 };
+PixelColor colorsBW[] = {PixelColor::WHITE, PixelColor::BLACK};  // white is first so that blink/fade animations work
+PixelColor colorsRGB[] = {PixelColor::R, PixelColor::G, PixelColor::B};
+PixelColor colorsRYGB[] = {PixelColor::RED, PixelColor::YELLOW, PixelColor::GREEN, PixelColor::BLUE};
+PixelColor colorsRYGBStripe[] = {PixelColor::RED, 0, PixelColor::YELLOW, 0, PixelColor::GREEN, 0, PixelColor::BLUE, 0 };
+PixelColor colorsRainbow[] = {PixelColor::RED, PixelColor::ORANGE, PixelColor::YELLOW, PixelColor::GREEN, PixelColor::BLUE, PixelColor::INDIGO, PixelColor::VIOLET};
 
 PixelPalette paletteBW = { 2, colorsBW };
 PixelPalette paletteRGB = { 3, colorsRGB };
 PixelPalette paletteRYGB = { 4, colorsRYGB };
 PixelPalette paletteRYGBStripe = { 8, colorsRYGBStripe };
-PixelPalette paletteRainbow = { 8, colorsRainbow };
+PixelPalette paletteRainbow = { 7, colorsRainbow };
+
+
+
+/*************************
+ * animations
+ */
 
 void animation_blink(PixelAnimationData* data) {
     data->setPixels(data->paletteColor(0).scale((data->step(2) + 1) % 2));

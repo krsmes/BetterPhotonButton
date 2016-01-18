@@ -1,3 +1,4 @@
+#pragma SPARK_NO_PREPROCESSOR
 #include "application.h"
 #include "BetterPhotonButton.h"
 

@@ -19,22 +19,25 @@ limitations under the License.
 
 #include <application.h>
 
-#define BUTTON_COUNT 4
+#define BUTTON_COUNT 4  // Particle InternetButton 4 buttons
 #define BUTTON_1_PHOTON_PIN 4
 #define BUTTON_2_PHOTON_PIN 5
 #define BUTTON_3_PHOTON_PIN 6
 #define BUTTON_4_PHOTON_PIN 7
-#define BUTTON_DEBOUNCE_DELAY 50
+#define BUTTON_DEBOUNCE_DELAY 50  // 50ms button press/release debounce
 
 #define BUZZER_PHOTON_PIN D0
+#define DEFAULT_BPM 120  // 1/2 second quarter note
+#define DEFAULT_OCTAVE 5   // C = 523Hz
+#define DEFAULT_NOTE_TIME 4  // quarter note
 
-#define PIXEL_COUNT 11
 #define PIXEL_PHOTON_PIN 3
+#define PIXEL_COUNT 11  // Particle InternetButton 11 LED ring
 
 #define ADXL_PHOTON_PIN A2
-#define ADXL_TOLERANCE 10
+#define ADXL_TOLERANCE 10  // 10 raw units of +/- tolerance on x/y/z before detecting movement
 
-
+/* holds a color, some helper functions for manipulating the color */
 struct PixelColor {
     byte r;
     byte g;
@@ -63,33 +66,60 @@ struct PixelColor {
 
     /* compute a new color between the current one and given one using the given fractional value */
     PixelColor interpolate(PixelColor color, float value) {
-        byte newR = (byte) (value * (color.r - r) + r);
-        byte newG = (byte) (value * (color.g - g) + g);
-        byte newB = (byte) (value * (color.b - b) + b);
-        return PixelColor(newR, newG, newB);
+        return PixelColor((byte) (value * (color.r - r) + r),
+                          (byte) (value * (color.g - g) + g),
+                          (byte) (value * (color.b - b) + b));
     }
 
     /* multiply the current color by the given scale value */
     PixelColor scale(float value) {
-        byte newR = (byte) min(r * value, 0xFF);
-        byte newG = (byte) min(g * value, 0xFF);
-        byte newB = (byte) min(b * value, 0xFF);
-        return PixelColor(newR, newG, newB);
+        return PixelColor((byte) min(r * value, 0xFF),
+                          (byte) min(g * value, 0xFF),
+                          (byte) min(b * value, 0xFF));
     }
 
     enum Colors: uint32_t {
-        BLACK   = 0,
+        OFF     = 0,
+        BLACK   = OFF,
         WHITE   = 0xFFFFFF,
-        RED     = 0xFF0000,
-        GREEN   = 0x00FF00,
-        BLUE    = 0x0000FF,
-        YELLOW  = RED | GREEN,
-        CYAN    = GREEN | BLUE,
-        MAGENTA = RED | BLUE,
+
+        R       = 0xFF0000,
+        G       = 0x00FF00,
+        B       = 0x0000FF,
+
+        RED     = R,
+        LIME    = G,
+        BLUE    = B,
+        YELLOW  = R | G,
+        CYAN    = G | B,
+        MAGENTA = R | B,
+
+        MAROON  = 0x800000,
+        OLIVE   = 0x808000,
+        GREEN   = 0x008000,
+        NAVY    = 0x000080,
+        TEAL    = 0x008080,
+        PURPLE  = 0x800080,
+        GRAY    = 0x808080,
+        SILVER  = 0xC0C0C0,
+
+        BROWN   = 0xA52A2A,
+        SIENNA  = 0xA0522D,
+        CORAL   = 0xFF7F50,
+        ORANGE  = 0xFFA500,
+        GOLD    = 0xFFD700,
+        INDIGO  = 0x4B0082,
+        VIOLET  = 0xEE82EE,
+        PINK    = 0xFFC0CB,
+
+        IVORY   = 0xFFFFF0,  // less blue white
+        LINEN   = 0xFAF0E6,  // less blue white
+        BEIGE   = 0xF5F5DC,  // less blue white
+        KHAKI   = 0xF0E68C,  // less blue white
     };
 };
 
-
+/* holds a set of colors, helper functions for selecting or computing a color from the palette */
 struct PixelPalette {
     byte count;
     PixelColor *colors;
@@ -122,6 +152,7 @@ extern PixelPalette paletteRYGB;
 extern PixelPalette paletteRYGBStripe;
 extern PixelPalette paletteRainbow;
 
+/* holds the data and functions given to a PixelAnimation function */
 struct PixelAnimationData {
     int pixelCount;
     PixelColor *pixels;
@@ -169,6 +200,7 @@ struct PixelAnimationData {
     }
 };
 
+/* function definition for creating animations */
 typedef void (PixelAnimation)(PixelAnimationData* data);
 
 /* palette color[0] only */
@@ -199,7 +231,7 @@ extern PixelAnimation animation_gradient;
 class PhotonADXL362Accel;
 
 typedef void (ButtonHandler)(int button, bool pressed);
-extern int noteToFrequency(const char *note_cstr);
+extern int noteToFrequency(const char *note_cstr, byte octave = DEFAULT_OCTAVE);
 
 
 class BetterPhotonButton {
@@ -280,13 +312,16 @@ public:
 
     /* buzzer */
 
-    /* play the given note for the given duration (returns immediately)
-     * examples: "G" or "G5" = 784Hz, "G4" or "G-" = 392Hz, "G6" or "G+" = 1568Hz , "G#" = 831Hz, "Gb" = 740Hz */
-    int playNote(const char* current, int duration = 1000/4);
+    /* play the given note for the given duration (plays immediately, returns immediately)
+     * examples: "G" or "G5" = 784Hz, "G4" or "G-" = 392Hz, "G6" or "G+" = 1568Hz , "G#" = 831Hz, "G_" = 740Hz
+     * returns the actual duration of the note being played */
+    int playNote(char* current, int duration = 1000/DEFAULT_NOTE_TIME);
 
-    /* start the given sequence of notes (returns immediately)
-     * example: "C-:8,E-,G-,C,G:4" plays 1/8th notes C4, E4, G4, C5 and 1/4 note G5 */
-    void playNotes(String notes, int defaultDuration = 1000/4);
+    /* start the given sequence of notes (play starts on next update, returns immediately)
+     * example: ":8,C-,E-,G-,C,4G" plays 1/8th notes C4, E4, G4, C5 and 1/4 note G5 */
+    void playNotes(const String &notes, int bpm = DEFAULT_BPM, byte octave = DEFAULT_OCTAVE);
+
+    void stopPlayingNotes();
 
 private:
     void updateButtonsState(system_tick_t millis);
@@ -297,12 +332,18 @@ private:
 
     void updatePlayNotes(system_tick_t millis);
 
+    void changeNoteSettings(char *current);
+
     PixelAnimation *animationFunction;
     PixelAnimationData animationData = PixelAnimationData();
     int animationRefresh;
-    char* notesToPlay;
+
+    String notesToPlay;
+    char *noteCurrent;
+    byte noteOctave;
     int noteDuration;
-    system_tick_t notesNextUpdate;
+    int noteWholeDuration;
+    system_tick_t noteNextUpdate;
 };
 
 /**********************************************************************************************************************/
