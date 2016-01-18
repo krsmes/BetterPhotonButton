@@ -16,6 +16,7 @@ limitations under the License.
 
 #ifndef BETTERPHOTONBUTTON_H
 #define BETTERPHOTONBUTTON_H
+#define BETTERPHOTONBUTTON_V "0.1.4"
 
 #include <application.h>
 
