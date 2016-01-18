@@ -35,8 +35,16 @@ PixelColor colorsMix[] = {
         0x5500AB, 0x84007C, 0xB5004B, 0xE5001B, 0xE81700, 0xB84700, 0xAB7700, 0xABAB00,
         0xAB5500, 0xDD2200, 0xF2000E, 0xC2003E, 0x8F0071, 0x5F00A1, 0x2F00D0, 0x0007F9
 };
-PixelColor colorsWRY[] = {
-        0x000000, 0xFF0000, 0xFFFF00
+PixelColor colorsYCM[] = {
+        PixelColor::YELLOW, PixelColor::CYAN, PixelColor::MAGENTA
+};
+PixelColor colors80s[] = {
+        PixelColor::MAROON, PixelColor::OLIVE, PixelColor::GREEN, PixelColor::NAVY,
+        PixelColor::TEAL, PixelColor::PURPLE, PixelColor::GRAY, PixelColor::SILVER
+};
+PixelColor colorsOther[] = {
+        PixelColor::BROWN, PixelColor::SIENNA, PixelColor::CORAL, PixelColor::ORANGE,
+        PixelColor::GOLD, PixelColor::INDIGO, PixelColor::VIOLET, PixelColor::PINK
 };
 
 // all the palettes (predefined and custom)
@@ -48,7 +56,9 @@ PixelPalette palettes[] = {
         paletteRainbow,
         { 16, colorsRainbowStripe },
         { 16, colorsMix},
-        { 3, colorsWRY },
+        { 3, colorsYCM },
+        { 8, colors80s },
+        { 8, colorsOther },
 };
 
 

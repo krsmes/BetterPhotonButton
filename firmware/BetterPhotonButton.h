@@ -112,10 +112,10 @@ struct PixelColor {
         VIOLET  = 0xEE82EE,
         PINK    = 0xFFC0CB,
 
-        IVORY   = 0xFFFFF0,  // less blue white
-        LINEN   = 0xFAF0E6,  // less blue white
-        BEIGE   = 0xF5F5DC,  // less blue white
-        KHAKI   = 0xF0E68C,  // less blue white
+        IVORY   = 0xFFFFF0,  // less blue white (barely noticable)
+        LINEN   = 0xFAF0E6,  // less blue white (barely noticable)
+        BEIGE   = 0xF5F5DC,  // less blue white (barely noticable)
+        KHAKI   = 0xF0E68C,  // less blue white (noticable)
     };
 };
 

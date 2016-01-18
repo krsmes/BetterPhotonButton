@@ -22,6 +22,6 @@ set(SOURCE_FILES
         firmware/examples/SerialTesting.cpp
         firmware/examples/SimpleRainbow.cpp
         firmware/examples/Incrementor.cpp
-        firmware/examples/ToneTest.cpp firmware/examples/PlaySongs.cpp)
+        firmware/examples/ToneTest.cpp firmware/examples/PlaySongs.cpp firmware/examples/Whites.cpp)
 
 add_executable(BetterPhotonButton ${SOURCE_FILES})
