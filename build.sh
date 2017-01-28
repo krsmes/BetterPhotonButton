@@ -1,8 +1,11 @@
 #!/bin/bash
 
-: ${PARTICLE_BUILDPACK_VERSION="v0.4.7"}
+# : ${PARTICLE_BUILDPACK_VERSION="v0.4.9-rc.3"}
+# : ${PARTICLE_BUILDPACK_VERSION="latest"}
+: ${PARTICLE_BUILDPACK_VERSION="0.6.0"}
 : ${PARTICLE_BUILDPACK_IMAGE="particle/buildpack-particle-firmware:$PARTICLE_BUILDPACK_VERSION"}
-: ${PARTICLE_PLATFORM_ID=6}
+: ${PARTICLE_PLATFORM_ID=6} # photon
+# : ${PARTICLE_PLATFORM_ID=10} # electron
 
 _start_machine() {
 	# ensure the docker machine is running
@@ -14,7 +17,7 @@ _init_build() {
 	# flatten all the source files in the build directory
 	rm -rf build
 	mkdir build
-	cp firmware/* build
+	cp src/* build
 	for f in "$@"; do cp $f build; done
 	echo "========================="
 	ls -l build
@@ -46,7 +49,7 @@ _post_build() {
 	fi 
 }
 
-_start_machine
+#_start_machine
 _init_build $@
 _build
 _post_build

@@ -1,7 +1,0 @@
-{
-    "name": "BetterPhotonButton",
-    "version": "0.1.6",
-    "author": "Kevin R. Smith <krsjunk@netscape.net>",
-    "license": "Apache License, Version 2.0",
-    "description": "Classes to simplify use of Particle's InternetButton with Photon."
-}
