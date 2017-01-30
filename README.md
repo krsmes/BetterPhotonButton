@@ -65,19 +65,19 @@ these two for the library to function properly.
 
 ## Examples
 
-#### AnimateAccel
+#### [AnimateAccel](examples/AnimateAccel/AnimateAccel.cpp)
 See above.
 
-#### Animations
+#### [Animations](examples/Animations/Animations.cpp)
 Use the buttons to cycle through a variety of sample animations.
 
-#### Incrementor
+#### [Incrementor](examples/Incrementor/Incrementor.cpp)
 Use the buttons to increment/decrement/reset which LED is lit up.
 
-#### PlaySongs
+#### [PlaySongs](examples/PlaySongs/PlaySongs.cpp)
 Cycle through 11 'tunes' using the buttons.  One tune per LED.
 
-#### SimpleRainbow
+#### [SimpleRainbow](examples/SimpleRainbow/SimpleRainbow.cpp)
 The simplest BetterPhotonButton example.  Simple gradiant across all the LEDs.  
 
 ```c
@@ -98,10 +98,76 @@ void loop() {
 The `rainbow(...)` function exists as an carryover from Particle's InternetButton library.  All it 
 does is call `startPixelAnimation(&animation_gradient, &paletteRainbow, cycle, duration);`
 
-#### ToneTest
+#### [ToneTest](examples/ToneTest/ToneTest.cpp)
 Example of playing notes while animating the LEDs
 
-## Notes
+## Reference
+
+### Buttons
+(in progress)
+
+### Pixels (LEDs)
+(in progress)
+
+#### Built in Animations
+
+These animations are just functions implmented at the bottom of [BetterPhotonButton.cpp](src/BetterPhotonButton.cpp).
+The most complex one in this set is animation_comet and it is only 9 lines of code, so these are not complex 
+to implement.  Study these functions and the corresponding `PixelAnimationData` struct which has supporting functions
+to help you compute things relative to the current step, palette, pixel, etc.
+
+##### use only first color in color palette
+* `animation_blink`
+* `animation_alternating`
+* `animation_fadeIn`
+* `animation_fadeOut`
+* `animation_glow`
+
+##### use all colors in color palette
+* `animation_strobe`
+* `animation_sparkle`
+* `animation_fader`
+* `animation_cycle`
+* `animation_random`
+* `animation_increment`
+* `animation_decrement`
+* `animation_bounce`
+* `animation_scanner`
+* `animation_comet`
+* `animation_bars`
+* `animation_gradient`
+
+You can write your own animation functions as seen above in `AnimateAccel` and set the pattern
+of LEDs based on data (such as the accelerometer). 
+
+Another example of a custom 'animation' function is in `PlaySongs` with the `animateCount()` 
+function which lights a single LED based on the value of the variable indicating the current
+selection.
+
+#### Built in Color Palettes
+
+All animations depend on a color palette to function.  These palettes are simply a reference to a 
+`PixelPalette` struct which wraps a count and a pointer to an array of colors (`PixelColor`).  
+There are 5 predefined palettes to help you get started.
+
+* `paletteBW` -- 2: White/Black(off)
+* `paletteRGB` -- 3: Red/Green/Blue
+* `paletteRYGB` -- 4: Red/Yellow/Green/Blue
+* `paletteRYGBStripe` -- 8: Red/Black/Yellow/Black/Green/Black/Blue/Black
+* `paletteRainbow` 7: Red/Orange/Yellow/Green/Blue/Indego/Violet
+
+Note that many animations compute the color between two colors in a palette. For example if you
+use the `animation_gradient` with the `paletteBW` across 11 LEDs (pixels) you will end up with
+with a gradient of the brightness of White to Black (off) across the 11 LEDs.  This is the difference
+between using functions on `PixelAnimationData` that take and return `float` vs `int`.
+
+### Musical Notes
+(in progress)
+
+### Accelerometer
+(in progress)
+
+## Etc.
 
 * It is possible to use the `PhotonWS2812Pixel` and Animations classes directly to support any chain 
 of WS8212 pixel LEDs.  Just use the `BetterPhotonButton` class as an example.  
