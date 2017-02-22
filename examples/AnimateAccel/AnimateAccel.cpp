@@ -1,5 +1,4 @@
-#pragma SPARK_NO_PREPROCESSOR
-#include "application.h"
+#include "Particle.h"
 #include "BetterPhotonButton.h"
 
 SYSTEM_THREAD(ENABLED);

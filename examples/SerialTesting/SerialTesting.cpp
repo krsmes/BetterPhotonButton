@@ -1,5 +1,4 @@
-#pragma SPARK_NO_PREPROCESSOR
-#include "application.h"
+#include "Particle.h"
 #include "BetterPhotonButton.h"
 
 /* print out the button and its state */
